@@ -19,6 +19,9 @@ from homeassistant.components.text import TextEntity
 from homeassistant.const import TEMP_CELSIUS
 from homeassistant.const import UnitOfElectricPotential
 
+from homeassistant import config_entries, core
+
+
 _LOGGER = logging.getLogger(__name__)
 
 #CONF_NAME = "name"
@@ -39,7 +42,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     }
 )
 
-
+# Load configuration from file
 def setup_platform(hass, config, add_entities, discovery_info=None):
     # Obtain configuration
     sensors = config.get(CONF_SENSORS)
@@ -71,6 +74,46 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
         devices.append( battery_sensor)
     # Add entities to Home Assistant
     add_entities(devices)
+
+
+async def async_setup_entry(
+    hass: core.HomeAssistant,
+    config_entry: config_entries.ConfigEntry,
+    async_add_entities,
+) -> None:
+    """Setup sensors from a config entry created in the integrations UI."""
+    config = hass.data[DOMAIN][config_entry.entry_id]
+    sensors = config.get(CONF_SENSORS)
+    logging.info(f"Adding sensors {sensors}")
+    devices = []
+    # Create Device (Sensors + Sensit object)
+    for dev in sensors:
+        # Device ID should be added as attr to the sensors
+        # Other fields expect name could be removed
+        temp_sensor = SensitTemperature(
+            dev.get(CONF_NAME, dev.get(CONF_DEVICE_ID)),
+            dev.get(CONF_DEVICE_ID),
+            dev.get(CONF_VERSION),
+            dev.get(CONF_MODE),
+        )
+        battery_sensor = SensitBattery(
+            dev.get(CONF_NAME, dev.get(CONF_DEVICE_ID)),
+            dev.get(CONF_DEVICE_ID),
+        )
+        sensit = SensitDevice(
+                dev.get(CONF_NAME, dev.get(CONF_DEVICE_ID)),
+                dev.get(CONF_DEVICE_ID),
+                dev.get(CONF_VERSION),
+                dev.get(CONF_MODE),
+                temp_sensor,
+                battery_sensor)
+        # Register a callback to update value on new data reception
+        hass.helpers.event.async_track_state_change_event("sensor."+sensit.device_id, sensit.handle_event)
+        devices.append(temp_sensor)
+        devices.append( battery_sensor)
+    # Add entities to Home Assistant
+    async_add_entities(devices)
+
 
 
 class SensitDevice:
