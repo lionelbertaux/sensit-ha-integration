@@ -1,0 +1,9 @@
+{
+  "domain": "sensit",
+  "name": "Sigfox Sensit",
+  "integration_type": "hub",
+  "documentation": "https://github.com/github.com/lionelbertaux/sensit-ha-integration",
+  "requirements": [],
+  "codeowners": ["@lionelbertaux"],
+  "version":  "0.1.0"
+}
