@@ -83,34 +83,37 @@ async def async_setup_entry(
 ) -> None:
     """Setup sensors from a config entry created in the integrations UI."""
     config = hass.data[DOMAIN][config_entry.entry_id]
-    sensors = config.get(CONF_SENSORS)
-    logging.info(f"Adding sensors {sensors}")
+    # Update our config to include new repos and remove those that have been removed.
+    if config_entry.options:
+        config.update(config_entry.options)
+    # sensors = config.get(CONF_SENSORS)
+    # logging.info(f"Adding sensors {sensors}")
     devices = []
     # Create Device (Sensors + Sensit object)
-    for dev in sensors:
-        # Device ID should be added as attr to the sensors
-        # Other fields expect name could be removed
-        temp_sensor = SensitTemperature(
-            dev.get(CONF_NAME, dev.get(CONF_DEVICE_ID)),
-            dev.get(CONF_DEVICE_ID),
-            dev.get(CONF_VERSION),
-            dev.get(CONF_MODE),
-        )
-        battery_sensor = SensitBattery(
-            dev.get(CONF_NAME, dev.get(CONF_DEVICE_ID)),
-            dev.get(CONF_DEVICE_ID),
-        )
-        sensit = SensitDevice(
-                dev.get(CONF_NAME, dev.get(CONF_DEVICE_ID)),
-                dev.get(CONF_DEVICE_ID),
-                dev.get(CONF_VERSION),
-                dev.get(CONF_MODE),
-                temp_sensor,
-                battery_sensor)
-        # Register a callback to update value on new data reception
-        hass.helpers.event.async_track_state_change_event("sensor."+sensit.device_id, sensit.handle_event)
-        devices.append(temp_sensor)
-        devices.append( battery_sensor)
+    # for dev in sensors:
+    # Device ID should be added as attr to the sensors
+    # Other fields expect name could be removed
+    temp_sensor = SensitTemperature(
+        config.get(CONF_NAME, config.get(CONF_DEVICE_ID)),
+        config.get(CONF_DEVICE_ID),
+        config.get(CONF_VERSION),
+        config.get(CONF_MODE),
+    )
+    battery_sensor = SensitBattery(
+        config.get(CONF_NAME, config.get(CONF_DEVICE_ID)),
+        config.get(CONF_DEVICE_ID),
+    )
+    sensit = SensitDevice(
+            config.get(CONF_NAME, config.get(CONF_DEVICE_ID)),
+            config.get(CONF_DEVICE_ID),
+            config.get(CONF_VERSION),
+            config.get(CONF_MODE),
+            temp_sensor,
+            battery_sensor)
+    # Register a callback to update value on new data reception
+    hass.helpers.event.async_track_state_change_event("sensor."+sensit.device_id, sensit.handle_event)
+    devices.append(temp_sensor)
+    devices.append( battery_sensor)
     # Add entities to Home Assistant
     async_add_entities(devices)
 
@@ -120,7 +123,7 @@ class SensitDevice:
     # TODO Change SensitDevice to a Registered Device
     def __init__(self, name, device_id, version, mode, temperature_sensor, battery_sensor):
         # Different attributes of the device
-        self.name = name
+        self._name = name
         self.device_id = device_id
         self.version = version
         self.mode = mode
@@ -129,6 +132,21 @@ class SensitDevice:
         # Mostly data parsed from the raw Data
         self.temperature_sensor = temperature_sensor
         self.battery_sensor = battery_sensor
+
+    @property
+    def name(self) -> str:
+        """Return the name of the entity."""
+        return self._name
+
+    @property
+    def unique_id(self) -> str:
+        """Return the unique ID of the sensor."""
+        return self.device_id
+
+
+    @property
+    def state(self) -> str | None:
+        return self._state
 
     def handle_event(self, event):
         """ Callback function called when a the state of sensor.device_id is changed
@@ -228,16 +246,26 @@ class SensitTemperature(SensorEntity):
     _attr_state_class = SensorStateClass.MEASUREMENT
 
     def __init__(self, name, device_id, version, mode):
-        self._attr_name = name + "_temperature"
-        self._device_id = device_id
+        self._name = name + "_temperature"
+        self.device_id = device_id + "_temperature"
         self._version = version
         self._mode = mode
         #self.update(20)
 
+    @property
+    def name(self) -> str:
+        """Return the name of the entity."""
+        return self._name
+
+    @property
+    def unique_id(self) -> str:
+        """Return the unique ID of the sensor."""
+        return self.device_id
+
     def update(self, temperature) -> None:
         # logging(f"Device {self._device_id} state: {self.state()}, value: {self.native_value()}")
         #logging(f"Device {self._device_id}, value: {self.native_value()}")
-        logging.info(f"Update temperature for device {self._device_id}, sensor {self._attr_name} - {str(temperature)}")
+        logging.info(f"Update temperature for device {self.device_id}, sensor {self._name} - {str(temperature)}")
         #self._attr_native_value = float(temperature)
         self._attr_native_value = float(temperature)
         self.schedule_update_ha_state()
@@ -246,13 +274,6 @@ class SensitTemperature(SensorEntity):
     def should_poll(self):
         return False
 
-    @property
-    def name(self):
-        return self._attr_name
-
-    @property
-    def id(self):
-        return self._device_id
 
 """
     def turn_on(self, **kwargs):
@@ -271,11 +292,23 @@ class SensitBattery(SensorEntity):
     _attr_state_class = SensorStateClass.MEASUREMENT
 
     def __init__(self, name, device_id):
-        self._attr_name = name + "_battery"
-        self._device_id = device_id
+        self._name = name + "_battery"
+        self.device_id = device_id + "_battery"
+
+
+    @property
+    def name(self) -> str:
+        """Return the name of the entity."""
+        return self._name
+
+    @property
+    def unique_id(self) -> str:
+        """Return the unique ID of the sensor."""
+        return self.device_id
+
 
     def update(self, battery) -> None:
-        logging.info(f"Update battery for device {self._device_id}, sensor {self._attr_name} - {str(battery)}")
+        logging.info(f"Update battery for device {self.device_id}, sensor {self._name} - {str(battery)}")
         self._attr_native_value = float(battery)
         self.schedule_update_ha_state()
 

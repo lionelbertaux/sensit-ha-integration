@@ -1,21 +1,21 @@
 {
   "config": {
+    "flow_title": "Name of the flow",
     "step": {
       "user": {
-        "data": {
-          "backend_url": "[%key:common::config_flow::data::backend_url%]",
-          "mode": "[%key:common::config_flow::data::mode%]"
-        },
         "title": "Integration configuration",
-        "description": "Enter configuration valid for all devices"
+        "description": "Enter configuration valid for all devices",
+        "data": {
+          "backend_url": "backend_url",
+          "mode": "mode"
+        }
       },
       "device": {
         "data": {
-          "device_id": "[%key:common::config_flow::data::device_id%]",
+          "device_id": "device_id",
           "name" : "name",
-          "version": "[%key:common::config_flow::data::version%]",
-          "mode": "[%key:common::config_flow::data::mode%]",
-          "add_another": "Add another device ?"
+          "version": "version",
+          "mode": "mode"
         }
       }
     },
