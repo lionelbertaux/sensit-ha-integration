@@ -24,6 +24,7 @@ from homeassistant import config_entries, core
 
 _LOGGER = logging.getLogger(__name__)
 
+# TODO Clean this part, use const.py ? 
 #CONF_NAME = "name"
 CONF_DEVICE_ID = "device_id"
 CONF_VERSION = "version"
@@ -68,6 +69,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
                 properties.get(CONF_MODE),
                 temp_sensor,
                 battery_sensor)
+        # TODO Add sensors for other metrics: Sound, Motion, Light, Magnet, Button, ...
         # Register a callback to update value on new data reception
         hass.helpers.event.async_track_state_change_event("sensor."+sensit.device_id, sensit.handle_event)
         devices.append(temp_sensor)
@@ -86,11 +88,8 @@ async def async_setup_entry(
     # Update our config to include new repos and remove those that have been removed.
     if config_entry.options:
         config.update(config_entry.options)
-    # sensors = config.get(CONF_SENSORS)
-    # logging.info(f"Adding sensors {sensors}")
     devices = []
     # Create Device (Sensors + Sensit object)
-    # for dev in sensors:
     # Device ID should be added as attr to the sensors
     # Other fields expect name could be removed
     temp_sensor = SensitTemperature(
@@ -118,7 +117,6 @@ async def async_setup_entry(
     async_add_entities(devices)
 
 
-
 class SensitDevice:
     # TODO Change SensitDevice to a Registered Device
     def __init__(self, name, device_id, version, mode, temperature_sensor, battery_sensor):
@@ -143,7 +141,6 @@ class SensitDevice:
         """Return the unique ID of the sensor."""
         return self.device_id
 
-
     @property
     def state(self) -> str | None:
         return self._state
@@ -157,11 +154,11 @@ class SensitDevice:
         # New metric is include in the new_state key as state
         raw_data = event.data.get("new_state").state
         if raw_data:
+            # TODO Implement parsing for parsing v2 or v3
+            # Code in https://github.com/sigfox/sensit-payload
             if self.version == 1:
                 parsed_data = self.parse_v1(raw_data)
                 logging.info(parsed_data)
-        # self.parse_data(data=event.data.get('new_state').state)
-        #self.temperature_sensor.update(int(event.data.get('new_state').state))
 
     def parse_data(self, data, data_time=None):
         """ Parse new data received
@@ -219,6 +216,7 @@ class SensitDevice:
             # Next bytes depends on mode
             mode = out_data.get("mode")
             out_data.update({"values": []})
+            # Not all modes are implemented for now (to implement: Motion, Sound, All and Off)
             if mode == 1:
                 logging.info(f"Sensit {self.name} mode temperature")
                 for i in range(8, len(data), 2):
@@ -226,14 +224,17 @@ class SensitDevice:
                 logging.info("-- Data parsed: {str(out_data)}")
                 return {"body": {"message": "Temperature message stored " + str(out_data.get("values"))}, "statusCode": 200}
             elif mode == 2:
-                logging.info(f"Sensit {self.name} mode movement")
-                return {"body": {"message": "Mouvement message not implemented yet"}, "statusCode": 500}
+                logging.info(f"Sensit {self.name} mode Motion")
+                # TODO Implement Motion mode message parsing for v1
+                return {"body": {"message": "Motion message not implemented yet"}, "statusCode": 500}
             elif mode == 3:
-                logging.info(f"Sensit {self.name}  mode full")
-                return {"body": {"message": "Full message not implemented yet"}, "statusCode": 500}
+                logging.info(f"Sensit {self.name}  mode All")
+                # TODO Implement All mode message parsing for v1
+                return {"body": {"message": "All message not implemented yet"}, "statusCode": 500}
             else:
-                logging.info(f"Sensit {self.name} OFF")
-                return {"body": {"message": "OFF notification not implemented yet"}, "statusCode": 500}
+                logging.info(f"Sensit {self.name} Off")
+                # TODO Implement Off mode message parsing for v1
+                return {"body": {"message": "Off notification not implemented yet"}, "statusCode": 500}
         except Exception as e:
             logging.error(f"Sensit {self.name} Error during data parsing {str(data)}. Error: {str(e.args)}")
             return {"body": {"message": "Error " + str(e.args)}, "statusCode": 500}
@@ -250,7 +251,6 @@ class SensitTemperature(SensorEntity):
         self.device_id = device_id + "_temperature"
         self._version = version
         self._mode = mode
-        #self.update(20)
 
     @property
     def name(self) -> str:
@@ -262,30 +262,19 @@ class SensitTemperature(SensorEntity):
         """Return the unique ID of the sensor."""
         return self.device_id
 
-    def update(self, temperature) -> None:
-        # logging(f"Device {self._device_id} state: {self.state()}, value: {self.native_value()}")
-        #logging(f"Device {self._device_id}, value: {self.native_value()}")
-        logging.info(f"Update temperature for device {self.device_id}, sensor {self._name} - {str(temperature)}")
-        #self._attr_native_value = float(temperature)
-        self._attr_native_value = float(temperature)
-        self.schedule_update_ha_state()
-
     @property
     def should_poll(self):
         return False
 
+    def update(self, temperature) -> None:
+        """ Update sensor value
+        """
+        logging.info(f"Update temperature for device {self.device_id}, sensor {self._name} - {str(temperature)}")
+        # TODO Add check on temperature value
+        self._attr_native_value = float(temperature)
+        self.schedule_update_ha_state()
 
-"""
-    def turn_on(self, **kwargs):
-        if self._send_code(self._code_on, self._protocol, self._length):
-            self._state = True
-            self.schedule_update_ha_state()
 
-    def turn_off(self, **kwargs):
-        if self._send_code(self._code_off, self._protocol, self._length):
-            self._state = False
-            self.schedule_update_ha_state()
-"""
 class SensitBattery(SensorEntity):
     _attr_native_unit_of_measurement = UnitOfElectricPotential.VOLT
     _attr_device_class = SensorDeviceClass.VOLTAGE
@@ -306,13 +295,12 @@ class SensitBattery(SensorEntity):
         """Return the unique ID of the sensor."""
         return self.device_id
 
-
-    def update(self, battery) -> None:
-        logging.info(f"Update battery for device {self.device_id}, sensor {self._name} - {str(battery)}")
-        self._attr_native_value = float(battery)
-        self.schedule_update_ha_state()
-
     @property
     def should_poll(self):
         return False
 
+    def update(self, battery) -> None:
+        logging.info(f"Update battery for device {self.device_id}, sensor {self._name} - {str(battery)}")
+        # TODO Add check on value
+        self._attr_native_value = float(battery)
+        self.schedule_update_ha_state()

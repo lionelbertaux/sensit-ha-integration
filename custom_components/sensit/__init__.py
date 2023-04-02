@@ -8,14 +8,12 @@ import asyncio
 
 from homeassistant import config_entries, core
 
-
 _LOGGER = logging.getLogger(__name__)
 
+# TODO Clean this part, use const.py ? 
 DOMAIN = "sensit"
-
 CONF_URL = "backend_url"
 CONF_MODE = "local"
-
 CONFIG_SCHEMA = vol.Schema(
 	{
 		DOMAIN: vol.Schema({
@@ -25,19 +23,6 @@ CONFIG_SCHEMA = vol.Schema(
 	},
 	extra=vol.ALLOW_EXTRA,
 )
-
-
-# def setup(hass, config):
-#     """ Only used when configuring from file
-#     """
-#     logging.info("basic setup")
-#     conf = config[DOMAIN]
-#     backend_url = conf.get(CONF_URL)
-#     data_mode = conf.get(CONF_MODE)
-
-#     hass.states.set("sensit.world", backend_url)
-
-#     return True
 
 
 async def async_setup_entry(
@@ -53,16 +38,15 @@ async def async_setup_entry(
     hass_data["unsub_options_update_listener"] = unsub_options_update_listener
     hass.data[DOMAIN][entry.entry_id] = hass_data
 
-    # Before creating the sensors, we need to register a global service 
+    # TODO Before creating the sensors, we need to register a global service 
     #     corresponding the global configuration of the device (mode, version, ...)
+    # This will be used in the COnfiguration form ....
 
     # Forward the setup to the sensor platform.
     hass.async_create_task(
         hass.config_entries.async_forward_entry_setup(entry, "sensor")
     )
     return True
-
-
 
 
 async def options_update_listener(
@@ -83,25 +67,8 @@ async def async_unload_entry(
     )
     # Remove options_update_listener.
     hass.data[DOMAIN][entry.entry_id]["unsub_options_update_listener"]()
-
     # Remove config entry from domain.
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id)
 
     return unload_ok
-
-
-
-"""
-basic integration configuration:
-https://blog.thestaticturtle.fr/creating-a-custom-component-for-homeassistant/
-
-Documentation on manigest:
-https://developers.home-assistant.io/docs/creating_integration_manifest
-
-Further steps for integration:
-https://aarongodfrey.dev/home%20automation/building_a_home_assistant_custom_component_part_1/
-
-Other: https://dev.to/adafycheng/write-custom-component-for-home-assistant-4fce
-
-"""

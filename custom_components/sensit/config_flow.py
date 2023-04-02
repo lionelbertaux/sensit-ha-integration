@@ -1,18 +1,15 @@
 """Config flow for Sensit integration integration."""
 from __future__ import annotations
-
 import logging
 from typing import Any, Dict, Optional
-
 import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
-from homeassistant.exceptions import HomeAssistantError
 import homeassistant.helpers.config_validation as cv
-
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.const import CONF_NAME, CONF_SENSORS
 from homeassistant.helpers.entity_registry import (
     async_entries_for_config_entry,
@@ -23,22 +20,12 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
-
-
-# CONF_MODE_GLOBAL = "version"
-
-
-# SENSIT_INTEGRATION_SCHEMA = vol.Schema({
-# 			vol.Optional(CONF_URL, default="backend.sigfox.com"): cv.string,
-# 			vol.Optional(CONF_MODE_GLOBAL, default="local"): cv.string,
-# 		})
-
+# TODO Clean this part, use const.py ? 
 CONF_URL = "backend_url"
 CONF_DEVICE_NAME = "name"
 CONF_DEVICE_ID = "device_id"
 CONF_VERSION = "version"
 CONF_MODE = "mode"
-
 SENSIT_DEVICE_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_DEVICE_NAME, default=("DEVICE_NAME")): cv.string,
@@ -51,26 +38,8 @@ SENSIT_DEVICE_SCHEMA = vol.Schema(
 
 class CustomConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Sensit integration."""
-
     VERSION = 1
-
     data: Optional[Dict[str, Any]]
-
-    # async def async_step_user(
-    #     self, user_input: dict[str, Any] | None = None
-    # ) -> FlowResult:
-    #     """Handle the initial step."""
-    #     errors: dict[str, str] = {}
-    #     if user_input is not None:
-    #         logging.info(f"Step integration - user input: str({user_input})")
-    #         self.data = user_input
-    #         self.data[CONF_SENSORS] = []
-    #         if not errors:
-    #             # Call the second  configuration screen
-    #             return await self.async_step_device()
-    #     return self.async_show_form(
-    #         step_id="user", data_schema=SENSIT_INTEGRATION_SCHEMA, errors=errors, description_placeholders={"name": "name"}
-    #     )
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -96,6 +65,7 @@ class CustomConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def async_get_options_flow(config_entry):
         """Get the options flow for this handler."""
         return OptionsFlowHandler(config_entry)
+
 
 class CannotConnect(HomeAssistantError):
     """Error to indicate we cannot connect."""
@@ -125,11 +95,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         logging.info(f"Config Entries: {str(self.config_entry)}")
         logging.info(f"Entries: {str(entries)}")
 
-        # list overall configuration and list of devices configured ? 
-
-
-
-
+        # TODO When the service has been added to the integration: allow  edition.
         options_schema = vol.Schema(
             {
                 vol.Optional(CONF_DEVICE_NAME): cv.string,
