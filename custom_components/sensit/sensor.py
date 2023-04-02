@@ -159,6 +159,11 @@ class SensitDevice:
             if self.version == 1:
                 parsed_data = self.parse_v1(raw_data)
                 logging.info(parsed_data)
+            elif self.version == 2 or self.version == 3:
+                self.parse_v2(raw_data)
+                logging.info(parsed_data)
+            else:
+                logging.error(f"Sensit version is incorrect ({str(self.version)}). Should be either 1, 2 or 3.")
 
     def parse_data(self, data, data_time=None):
         """ Parse new data received
@@ -240,17 +245,90 @@ class SensitDevice:
             return {"body": {"message": "Error " + str(e.args)}, "statusCode": 500}
         return {"body": {"message": "Nothing was processed"}, "statusCode": 500}
 
+    def parse_v2(self, data):
+        """ Parser for sensit v2
+        Bytes are read from left to right, the first byte being the most significant one
+        Bits are numbered the other way, from the LSB to the MSB. Bit 0 being the LSB & bit 7 the
+        MSB of the said byte
+        Example : received frame is A9670d19 .
+        First byte is 0xA9 or 0b10101001 .
+        Or {bit 7}{bit 6}{bit 5}{bit 4}{bit 3}{bit 2}{bit 1}{bit 0}
 
-class SensitTemperature(SensorEntity):
-    _attr_native_unit_of_measurement = TEMP_CELSIUS
-    _attr_device_class = SensorDeviceClass.TEMPERATURE
-    _attr_state_class = SensorStateClass.MEASUREMENT
+        --B0
+        b0-b2: Mode (0: Button, 1: Temperature, 2: Light, 3: Door, 4: Move, 5: Reed switch)
+        b3-b4: Timeframe (0: 10m, 1: 1h, 2: 6h, 3: 24h)
+        b5-b6: Type (0: regular no alert, 1: Button, 2: Alert, 3: New mode)
+        b7: Battery MSB 
+        -- B1
+        b0-b3: Temperature MSB
+        b4-b7: Nattery LSB
+        Data bytes
+        -- B2
+        Classic mode (excludes Light & Door regular frames)
+        b0-b5: Temperature LSB
+        b6: Reed Switch state
+        b7: Unused
+        Lightmode, value = {final multiplier} * {value} * 0.01              
+        b0-b5: value
+        b6-b7: Multiplier (for final multiplier, 0: 1, 1: 8, 2: 64, 3: 2014)
+        Door mode: byte not used
+        -- B3
+        Button Frames
+        b0-b3: Minor version
+        b4-b7: Major version
+        Temperaturemode:
+        b0-b7: Humidity = value* 0.5
+        Other mode, bytes contains the number of alerts
 
-    def __init__(self, name, device_id, version, mode):
-        self._name = name + "_temperature"
-        self.device_id = device_id + "_temperature"
-        self._version = version
-        self._mode = mode
+        Conversion details:
+        For battery: MSB LSB and {value} * 0.05 * 2.7
+        For Temperature MSB: ({value} * 6.4) - 20
+        """
+        out_data = {}
+        try:
+            logging.debug(f"Sensit {self.name} v2 data parsing {data}")
+            # First byte must be split in bits
+            b = "{:08b}".format(int(data[:2], base=16))
+            # print("First byte: " + str(b))
+            out_data.update({"mode":  int(b[2:])})
+            out_data.update({"period": int(b[len(b)-5:len(b)-3], 2)})
+            out_data.update({"forced": int(b[1])})
+            out_data.update({"button": int(b[0])})
+            # Following bytes are battery levels and temperature
+            out_data.update({"battery": self.convert_battery(data[2:4])})
+            self.battery_sensor.update(out_data.get("battery"))
+
+            # Push battery update to sensor
+            out_data.update({"sent_battery": self.convert_battery(data[4:6])})
+            out_data.update({"temperature": self.convert_temperature(data[6:8])})
+            # Push temperature update to sensor
+            self.temperature_sensor.update(out_data.get("temperature"))
+            # Next bytes depends on mode
+            mode = out_data.get("mode")
+            out_data.update({"values": []})
+            # Not all modes are implemented for now (to implement: Motion, Sound, All and Off)
+            if mode == 1:
+                logging.info(f"Sensit {self.name} mode temperature")
+                for i in range(8, len(data), 2):
+                    out_data["values"].append(self.convert_temperature(data[i:i+2]))
+                logging.info("-- Data parsed: {str(out_data)}")
+                return {"body": {"message": "Temperature message stored " + str(out_data.get("values"))}, "statusCode": 200}
+            elif mode == 2:
+                logging.info(f"Sensit {self.name} mode Motion")
+                # TODO Implement Motion mode message parsing for v1
+                return {"body": {"message": "Motion message not implemented yet"}, "statusCode": 500}
+            elif mode == 3:
+                logging.info(f"Sensit {self.name}  mode All")
+                # TODO Implement All mode message parsing for v1
+                return {"body": {"message": "All message not implemented yet"}, "statusCode": 500}
+            else:
+                logging.info(f"Sensit {self.name} Off")
+                # TODO Implement Off mode message parsing for v1
+                return {"body": {"message": "Off notification not implemented yet"}, "statusCode": 500}
+        except Exception as e:
+            logging.error(f"Sensit {self.name} Error during data parsing {str(data)}. Error: {str(e.args)}")
+            return {"body": {"message": "Error " + str(e.args)}, "statusCode": 500}
+        return {"body": {"message": "Nothing was processed"}, "statusCode": 500}
 
     @property
     def name(self) -> str:
