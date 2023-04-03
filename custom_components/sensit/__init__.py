@@ -7,11 +7,11 @@ import threading
 import asyncio
 
 from homeassistant import config_entries, core
+from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 # TODO Clean this part, use const.py ? 
-DOMAIN = "sensit"
 CONF_URL = "backend_url"
 CONF_MODE = "local"
 CONFIG_SCHEMA = vol.Schema(
