@@ -359,6 +359,9 @@ class SensitDevice:
 
 
 class SensitTemperature(SensorEntity):
+    _attr_native_unit_of_measurement = TEMP_CELSIUS
+    _attr_device_class = SensorDeviceClass.TEMPERATURE
+    _attr_state_class = SensorStateClass.MEASUREMENT
 
     def __init__(self, name, device_id, version, mode):
         self._name = name + "_temperature"
