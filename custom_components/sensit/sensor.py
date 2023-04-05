@@ -164,7 +164,7 @@ class SensitDevice:
                 parsed_data = s.parse_v1(raw_data)
                 logging.info(parsed_data)
             elif self.version == 2:
-                s = SensitParser
+                s = SensitParser()
                 parsed_data = s.parse_v2(raw_data)
                 logging.info(parsed_data)
             else:

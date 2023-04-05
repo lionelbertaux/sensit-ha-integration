@@ -87,7 +87,7 @@ class SensitParser:
         return {"body": {"message": "Nothing was processed"}, "statusCode": 500}
 
 
-    def parse_v2(data, name="sensit"):
+    def parse_v2(self, data, name="sensit"):
         """ Parser for sensit v2
         Arguments:
             - data: String to be parsed
