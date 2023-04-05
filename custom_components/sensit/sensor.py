@@ -22,6 +22,8 @@ from homeassistant.const import UnitOfElectricPotential
 from homeassistant import config_entries, core
 
 from .const import DOMAIN
+from .sensit_parser import SensitParser
+
 _LOGGER = logging.getLogger(__name__)
 
 # TODO Clean this part, use const.py ? 
@@ -152,17 +154,26 @@ class SensitDevice:
         # TODO Filter new events based on message age ? 
         # New metric is include in the new_state key as state
         raw_data = event.data.get("new_state").state
+        parsed_data = {}
         if raw_data:
             # TODO Implement parsing for parsing v2 or v3
             # Code in https://github.com/sigfox/sensit-payload
             if self.version == 1:
-                parsed_data = self.parse_v1(raw_data)
+                #parsed_data = self.parse_v1(raw_data)
+                s = SensitParser()
+                parsed_data = s.parse_v1(raw_data)
                 logging.info(parsed_data)
-            elif self.version == 2 or self.version == 3:
-                parsed_data = self.parse_v2(raw_data)
+            elif self.version == 2:
+                s = SensitParser
+                parsed_data = s.parse_v2(raw_data)
                 logging.info(parsed_data)
             else:
                 logging.error(f"Sensit version is incorrect ({str(self.version)}). Should be either 1, 2 or 3.")
+            if parsed_data:
+                if parsed_data.get("temperature", "") != "":
+                    self.temperature_sensor.update(parsed_data.get("temperature"))
+                if parsed_data.get("battery", "") != "":
+                    self.battery_sensor.update(parsed_data.get("battery"))
 
     def parse_data(self, data, data_time=None):
         """ Parse new data received
@@ -421,5 +432,7 @@ class SensitBattery(SensorEntity):
         # TODO Add check on value
         self._attr_native_value = float(battery)
         self.schedule_update_ha_state()
+
+
 
 
