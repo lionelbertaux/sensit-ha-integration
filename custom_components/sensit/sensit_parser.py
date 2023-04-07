@@ -197,3 +197,96 @@ class SensitParser:
 
 
 
+    def parse_v3(self, data, name="sensit"):
+        """ Parser for sensit v3
+        Arguments:
+            - data: String to be parsed
+            - name: Name of device, used to display a clear log
+        Bytes are read from left to right, the first byte being the most significant one
+        Bits are numbered the other way, from the LSB to the MSB. Bit 0 being the LSB & bit 7 the
+        MSB of the said byte
+        Example : received frame is A9670d19 .
+        First byte is 0xA9 or 0b10101001 .
+        Or {bit 7}{bit 6}{bit 5}{bit 4}{bit 3}{bit 2}{bit 1}{bit 0}
+    
+        --B0
+        b0-2: Reserved
+        b3-b7: battery
+        -- B1
+        b3-b7: Mode (1: Temperature, 2: Light, 3: Door, 4: Vibration, 5: Magnet)
+        b2: Button Alert flag
+        b0-b1: Temperature MSB or Door Status or Vibration Status or Magnet Status
+        Data bytes
+        -- B2
+        b0-b7: Temperature LSB or Brightness MSB or Event Count MSB (door, vibration, magnet)
+        -- B3
+        b0-b7: Humidity or Brightness LSB or Event Count MSB
+    
+        Conversion details:
+        For battery: {value} * 0.05 + 2.7
+        BUtton Alert flag: 1 when button is pressed
+        For Temperature mSB LSB ({value} - 200) / 8 
+        Humidity: {value} / 2
+        brightness: {value} / 96
+        Door: 0: not calibrated, 1: unused value, 2: Door closed, 3: Door open
+        Vibration: 0: no vibration detected, 1: vibration detected
+        Magnet: no magnet detected, 1: magnet detected
+        Event count: incremented every time an event is triggered, reset to 0 after a message or mode change
+        """
+        out_data = {}
+        try:
+            logging.debug(f"Sensit {name} v3 data parsing {data}")
+            # Byte 0 - Mode, period, ...
+            b = "{:08b}".format(int(data[:2], base=16))
+            logging.info(b)
+            out_data.update({"battery_raw":  int(b[8-1-7:8-3], 2)})
+    
+            # Byte 1 - Temperature MSB and Battery LSB
+            b = "{:08b}".format(int(data[2:4], base=16))
+            out_data.update({"mode": int(b[8-1-7:8-3], 2)})
+            out_data.update({"button": b[8-1-2:8-2]})
+            if out_data.get("mode") == 1:
+                out_data.update({"temperature_msb": b[8-1-1:8-0]})
+            elif out_data.get("mode") == 3:
+                out_data.update({"door": b[8-1-1:8-0]})
+            elif out_data.get("mode") == 4:
+                out_data.update({"vibration": b[8-1-1:8-0]})
+            elif out_data.get("mode") == 5:
+                out_data.update({"magnet": b[8-1-1:8-0]})
+    
+            # Byte 2 - Data depends on mode
+            b = "{:08b}".format(int(data[4:6], base=16))
+            if out_data.get("mode") == 1:
+                out_data.update({"temperature_lsb": b[8-1-7:8-0]})
+            elif out_data.get("mode") == 2:
+                # Light mode
+                out_data.update({"brithness_msb": b[8-1-7:8-0]})
+                logging.warning("Light mode, not implemented")
+                # TODO implement Light mode data parsing
+            else:
+                out_data.update({"event_count_msb": b[8-1-7:8-0]})
+                
+    
+            # Byte 3 - Version or Data
+            b = "{:08b}".format(int(data[6:8], base=16))
+            if out_data.get("mode") == 1:
+                out_data.update({"humidity": int(b[8-1-7:8-0], 2)})
+            elif out_data.get("mode") == 2:
+                out_data.update({"brightness_lsb": b[8-1-7:8-0]})
+            else:
+                out_data.update({"event_count_lsb": b[8-1-7:8-0]})
+    
+            # Data has been parsed, we can compute Temperature and battery      
+            battery = out_data.get("battery_raw") * 0.05 + 2.7
+            out_data.update({"battery": battery})
+            
+            if out_data.get("temperature_lsb"):
+                temperature = (int(out_data.get("temperature_msb") + out_data.get("temperature_lsb"), 2) - 200) / 8
+                out_data.update({"temperature": temperature})
+            return (out_data)
+        except Exception as e:
+            logging.error(f"Sensit {name} Error during data parsing {str(data)}. Error: {str(e.args)}")
+            return {"body": {"message": "Error " + str(e.args)}, "statusCode": 500}
+
+
+

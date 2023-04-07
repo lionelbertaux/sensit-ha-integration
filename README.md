@@ -2,8 +2,6 @@
 
 Home Assistant integration for Sensit devices.
 
-Hardware version 3 not supported for now.
-
 Sensors supported:
 - Temperature sensor
 - Battery sensor

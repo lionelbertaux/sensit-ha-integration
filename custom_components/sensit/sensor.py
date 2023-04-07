@@ -167,6 +167,10 @@ class SensitDevice:
                 s = SensitParser()
                 parsed_data = s.parse_v2(raw_data)
                 logging.info(parsed_data)
+            elif self.version == 3:
+                s = SensitParser()
+                parsed_data = s.parse_v3(raw_data)
+                logging.info(parsed_data)
             else:
                 logging.error(f"Sensit version is incorrect ({str(self.version)}). Should be either 1, 2 or 3.")
             if parsed_data:
