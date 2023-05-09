@@ -49,7 +49,7 @@ class SensitParser:
             # First byte must be split in bits
             b = "{:08b}".format(int(data[:2], base=16))
             # print("First byte: " + str(b))
-            out_data.update({"mode":  int(b[2:])})
+            out_data.update({"mode":  int(b[-2:])})
             out_data.update({"period": int(b[len(b)-5:len(b)-3], 2)})
             out_data.update({"forced": int(b[1])})
             out_data.update({"button": int(b[0])})
