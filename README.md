@@ -7,7 +7,6 @@ Sensors supported:
 - Battery sensor
 
 
-
 ## Installation
 
 For now, only local mode is supported: raw data must be pushed to Home Assistant is a sensor called 'sensor.DEVICE_ID' with the ID of your Sensit.

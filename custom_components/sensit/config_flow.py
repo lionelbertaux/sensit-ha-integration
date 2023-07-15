@@ -13,14 +13,14 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.const import CONF_NAME, CONF_SENSORS
 from homeassistant.helpers.entity_registry import (
     async_entries_for_config_entry,
-    async_get_registry,
+    async_get,
 )
 
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
-# TODO Clean this part, use const.py ? 
+# TODO Clean this part, use const.py ?
 CONF_URL = "backend_url"
 CONF_DEVICE_NAME = "name"
 CONF_DEVICE_ID = "device_id"
@@ -87,7 +87,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         """Manage the options for the custom component."""
         errors: Dict[str, str] = {}
         # Collect information on configured items and devices
-        entity_registry = await async_get_registry(self.hass)
+        entity_registry = await async_get(self.hass)
         logging.info(f"Entity registry: {str(entity_registry)}")
         entries = async_entries_for_config_entry(
             entity_registry, self.config_entry.entry_id
